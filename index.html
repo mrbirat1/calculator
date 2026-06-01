@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1e1e1e;
+      --border: rgba(255,255,255,0.07);
+      --text: #f0ede8;
+      --muted: rgba(240,237,232,0.4);
+      --accent: #c8f060;
+      --accent-dim: rgba(200,240,96,0.12);
+      --op: #f0ede8;
+      --radius: 20px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .calc {
+      position: relative;
+      width: 340px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .display {
+      padding: 28px 24px 20px;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .display::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.5;
+    }
+
+    .expr {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: right;
+      min-height: 20px;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      direction: rtl;
+      letter-spacing: 0.02em;
+    }
+
+    .main-display {
+      font-family: 'DM Mono', monospace;
+      font-size: 48px;
+      font-weight: 300;
+      text-align: right;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      word-break: break-all;
+      transition: font-size 0.1s;
+    }
+
+    .main-display.shrink { font-size: 32px; }
+    .main-display.tiny   { font-size: 22px; }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      padding: 1px;
+    }
+
+    .key {
+      background: var(--surface);
+      border: none;
+      height: 72px;
+      font-size: 18px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.1s, transform 0.08s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .key:active {
+      background: var(--surface2);
+      transform: scale(0.94);
+    }
+
+    .key.fn {
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    .key.op {
+      color: var(--accent);
+      font-size: 22px;
+      font-weight: 300;
+      background: var(--accent-dim);
+    }
+
+    .key.op:active {
+      background: rgba(200,240,96,0.2);
+    }
+
+    .key.eq {
+      background: var(--accent);
+      color: #0a0a0a;
+      font-size: 24px;
+      font-weight: 400;
+    }
+
+    .key.eq:active {
+      background: #b2d44e;
+      transform: scale(0.94);
+    }
+
+    .key.zero {
+      grid-column: span 2;
+      justify-content: flex-start;
+      padding-left: 28px;
+    }
+
+    @media (max-width: 380px) {
+      .calc { width: 100vw; border-radius: 0; border-left: none; border-right: none; }
+      .key { height: 80px; }
+    }
+
+    @media (min-height: 700px) {
+      .key { height: 80px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <div class="calc">
+    <div class="display">
+      <div class="expr" id="expr"></div>
+      <div class="main-display" id="display">0</div>
+    </div>
+    <div class="keypad" id="keypad">
+      <button class="key fn" data-action="clear">AC</button>
+      <button class="key fn" data-action="sign">+/−</button>
+      <button class="key fn" data-action="percent">%</button>
+      <button class="key op" data-action="op" data-val="÷">÷</button>
+
+      <button class="key" data-action="num" data-val="7">7</button>
+      <button class="key" data-action="num" data-val="8">8</button>
+      <button class="key" data-action="num" data-val="9">9</button>
+      <button class="key op" data-action="op" data-val="×">×</button>
+
+      <button class="key" data-action="num" data-val="4">4</button>
+      <button class="key" data-action="num" data-val="5">5</button>
+      <button class="key" data-action="num" data-val="6">6</button>
+      <button class="key op" data-action="op" data-val="−">−</button>
+
+      <button class="key" data-action="num" data-val="1">1</button>
+      <button class="key" data-action="num" data-val="2">2</button>
+      <button class="key" data-action="num" data-val="3">3</button>
+      <button class="key op" data-action="op" data-val="+">+</button>
+
+      <button class="key zero" data-action="num" data-val="0">0</button>
+      <button class="key" data-action="decimal">.</button>
+      <button class="key eq" data-action="equals">=</button>
+    </div>
+  </div>
+
+  <script>
+    const disp = document.getElementById('display');
+    const expr = document.getElementById('expr');
+    let cur = '0', prev = '', op = null, fresh = false;
+
+    function fmt(n) {
+      if (!isFinite(n)) return 'Error';
+      const s = parseFloat(n.toPrecision(12)).toString();
+      if (s.length > 12) return parseFloat(n.toPrecision(9)).toExponential(3);
+      return s;
+    }
+
+    function update(v) {
+      disp.textContent = v;
+      disp.className = 'main-display';
+      if (v.length > 12) disp.classList.add('tiny');
+      else if (v.length > 8) disp.classList.add('shrink');
+    }
+
+    function calc(a, b, o) {
+      if (o === '+') return a + b;
+      if (o === '−') return a - b;
+      if (o === '×') return a * b;
+      if (o === '÷') return b !== 0 ? a / b : NaN;
+      return b;
+    }
+
+    document.getElementById('keypad').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const act = btn.dataset.action;
+      const val = btn.dataset.val;
+
+      if (act === 'num') {
+        if (cur === '0' || fresh) { cur = val; fresh = false; }
+        else if (cur.length < 12) cur += val;
+        update(cur);
+      }
+      else if (act === 'decimal') {
+        if (fresh) { cur = '0'; fresh = false; }
+        if (!cur.includes('.')) cur += '.';
+        update(cur);
+      }
+      else if (act === 'clear') {
+        cur = '0'; prev = ''; op = null; fresh = false;
+        expr.textContent = '';
+        document.querySelector('.key.fn').textContent = 'AC';
+        update('0');
+      }
+      else if (act === 'sign') {
+        if (cur === '0') return;
+        cur = fmt(parseFloat(cur) * -1);
+        update(cur);
+      }
+      else if (act === 'percent') {
+        cur = fmt(parseFloat(cur) / 100);
+        update(cur);
+      }
+      else if (act === 'op') {
+        if (op && !fresh) {
+          const result = calc(parseFloat(prev), parseFloat(cur), op);
+          cur = fmt(result);
+          update(cur);
+        }
+        prev = cur; op = val; fresh = true;
+        expr.textContent = cur + ' ' + val;
+      }
+      else if (act === 'equals') {
+        if (!op) return;
+        const a = parseFloat(prev), b = parseFloat(cur);
+        expr.textContent = prev + ' ' + op + ' ' + cur + ' =';
+        const result = calc(a, b, op);
+        cur = fmt(result);
+        op = null; fresh = true;
+        update(cur);
+      }
+    });
+
+    document.addEventListener('keydown', e => {
+      const map = {
+        '0':'0','1':'1','2':'2','3':'3','4':'4',
+        '5':'5','6':'6','7':'7','8':'8','9':'9',
+        '+':'+','-':'−','*':'×','/':'÷',
+        'Enter':'=','=':'=','.':'.','Escape':'AC','Backspace':'back','%':'%'
+      };
+      const k = map[e.key];
+      if (!k) return;
+      e.preventDefault();
+      if (k === 'AC') { document.querySelector('[data-action="clear"]').click(); return; }
+      if (k === '=') { document.querySelector('[data-action="equals"]').click(); return; }
+      if (k === '.') { document.querySelector('[data-action="decimal"]').click(); return; }
+      if (k === '%') { document.querySelector('[data-action="percent"]').click(); return; }
+      if (k === 'back') {
+        if (fresh || cur === '0') return;
+        cur = cur.length === 1 ? '0' : cur.slice(0, -1);
+        update(cur); return;
+      }
+      if ('0123456789'.includes(k)) {
+        document.querySelector(`[data-val="${k}"][data-action="num"]`).click(); return;
+      }
+      document.querySelector(`[data-val="${k}"][data-action="op"]`)?.click();
+    });
+  </script>
+</body>
+</html>
